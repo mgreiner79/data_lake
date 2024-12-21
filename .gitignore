@@ -1,0 +1,21 @@
+# exclude file types
+*.exe
+*.jpg
+*.xlsx
+
+# exclude config files
+credentials.yaml
+.env
+
+
+#exclude dirs
+.idea
+.ipynb_checkpoints
+__pycache__
+venv
+logs
+
+# exclude .env file from django and django media
+django/media/*
+!django/media/**/.gitkeep
+django/.env/

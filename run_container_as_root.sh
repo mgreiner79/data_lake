@@ -1,0 +1,1 @@
+docker container exec -u 0 -it mycontainer bash

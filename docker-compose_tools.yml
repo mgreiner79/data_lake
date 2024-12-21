@@ -1,0 +1,53 @@
+version: "3.9"
+# vm3 superset and jupyterhub
+
+# environment variables declared in dev.env are available throughout all containers
+x-env_and_net_defaults: &env_and_net_defaults
+  init: true # best practice see https://medium.com/factualopinions/docker-compose-tricks-and-best-practices-5e7e43eba8eb
+  env_file:
+    - dev.env
+  networks: # containers run all in same subnet
+    - mpicecnet
+
+services:
+
+  # run jupyterlab
+  jupyterlab:
+    <<: *env_and_net_defaults
+    container_name: ms_jupyterlab
+    build: ms_jupyterlab #image: jupyter/base-notebook:latest
+    mem_limit: 1024m
+    mem_reservation: 128m
+    volumes:
+      - ./notebooks/:/notebooks
+    ports:
+      - "8888:8888"
+
+  # bi tool 
+  superset:
+    <<: *env_and_net_defaults
+    container_name: superset
+    mem_limit: 1024m
+    build: ./ms_superset
+    ports:
+      - 8088:8088
+    
+
+networks:
+  mpicecnet:
+    name: mpicecnet
+    driver: bridge
+
+volumes:
+  files:
+  pgdata:
+  miniodata:
+  neo4j_data:
+  es_data:
+  ldap_data:
+  ldap_config:
+  # airflow_scheduler_data:
+  # airflow_worker_data:
+  # airflow_data:
+  redis_data:
+  ssl_cert:

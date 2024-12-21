@@ -1,0 +1,1 @@
+sudo docker exec nginx certbot --nginx -d redmapl.surface-analytics.com

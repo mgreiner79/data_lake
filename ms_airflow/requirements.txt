@@ -1,0 +1,7 @@
+psycopg2-binary
+pandas
+minio
+pyhocon
+elasticsearch
+amundsen-databuilder
+

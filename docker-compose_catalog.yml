@@ -1,0 +1,187 @@
+version: "3.9"
+# vm2 all data catalog and django related, excluding s3 (minio)
+
+# environment variables declared in dev.env are available throughout all containers
+x-env_and_net_defaults: &env_and_net_defaults
+  init: true # best practice see https://medium.com/factualopinions/docker-compose-tricks-and-best-p
+  env_file:
+    - .env
+  networks:
+    - mpicecnet
+
+services:
+  # run postgres database service
+  postgres:
+    <<: *env_and_net_defaults
+    container_name: postgres
+    build: ./ms_postgres
+    mem_limit: 512m
+    mem_reservation: 128m
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/data/postgres
+    restart: always
+
+  # run neo4j used by amundsen
+  neo4j:
+    <<: *env_and_net_defaults
+    container_name: neo4j
+    build: ./ms_neo4j
+    mem_limit: 1024m
+    mem_reservation: 128m
+    ulimits:
+      nofile:
+        soft: 40000
+        hard: 40000
+    ports:
+      - 7474:7474
+      - 7687:7687
+    volumes:
+      - ./ms_neo4j/conf:/var/lib/neo4j/conf
+      - ./ms_neo4j/plugins:/var/lib/neo4j/plugins
+      - ./ms_neo4j/backup:/backup
+      - neo4j_data:/data #/var/lib/neo4j/data
+
+  # elastic search used by amundsen
+  elasticsearch:
+    <<: *env_and_net_defaults
+    container_name: elasticsearch
+    #image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.0" # 7.14.1
+    build: ./ms_elasticsearch
+    mem_limit: 1024m
+    mem_reservation: 128m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/var/lib/elasticsearch/data      #- es_data:/usr/share/elasticsearch/data
+    environment:
+      discovery.type: single-node
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # run amundsen search interface
+  amundsensearch:
+    <<: *env_and_net_defaults
+    build: ./ms_amundsen_search
+    # image: amundsendev/amundsen-search:3.0.0 # 2.11.1
+    container_name: amundsensearch
+    mem_limit: 128m
+    mem_reservation: 128m
+    ports:
+      - 5001:5000
+    depends_on:
+      - elasticsearch
+    # command: gunicorn -w 2 --bind :5000 search_service.search_wsgi
+
+  # run amundsen metadata service
+  amundsenmetadata:
+    <<: *env_and_net_defaults
+    build: ./ms_amundsen_metadata
+    #image: amundsendev/amundsen-metadata:3.10.0 # 3.9.0
+    container_name: amundsenmetadata
+    mem_limit: 128m
+    mem_reservation: 128m
+    depends_on:
+      - neo4j
+    ports:
+      - 5002:5000
+    environment:
+      - PROXY_HOST=bolt://neo4j
+    #command: gunicorn -w 2 --bind :5000 metadata_service.metadata_wsgi
+
+  # run amundsen frontend service
+  amundsenfrontend:
+    <<: *env_and_net_defaults
+    build: ./ms_amundsen_frontend
+    #image: amundsendev/amundsen-frontend:4.0.0 #3.12.0
+    container_name: amundsenfrontend
+    mem_limit: 512m
+    mem_reservation: 128m
+    depends_on:
+      - amundsenmetadata
+      - amundsensearch
+    ports:
+      - 5000:5000
+    #command: gunicorn -w 2 --bind :5000 amundsen_application.wsgi
+
+  # airflow-webserver; todo health checks; responsible cataloging and etl
+  airflow:
+    <<: *env_and_net_defaults
+    container_name: airflow
+    build:
+      context: ./ms_airflow
+      args:
+        - AIRFLOW_ADMIN_USERNAME=${AIRFLOW_ADMIN_USERNAME}
+        - AIRFLOW_ADMIN_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
+    mem_limit: 1024m
+    depends_on: 
+      - postgres
+    ports:
+      - 8080:8080
+    volumes:
+      - ./mpicec:/home/airflow/dags
+    command:
+      - ./bin/run_af.sh
+
+# web apis
+  django:
+    <<: *env_and_net_defaults
+    container_name: django
+    build: ./ms_django
+    mem_limit: 1024m
+    mem_reservation: 128m
+    command: gunicorn --workers=9 config.wsgi -b 0.0.0.0:8000
+    #command: /usr/local/bin/python3 /code/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./mpicec/django:/code
+    expose: # only exposed to other services
+      - 8000
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgres
+
+  # used by django and airflow
+  redis:
+    <<: *env_and_net_defaults
+    container_name: redis
+    image: "redis:alpine"
+    mem_limit: 512m
+    mem_reservation: 128m
+    environment:
+      ALLOW_EMPTY_PASSWORD: "yes" # only for dev
+    restart: always
+
+  # used by django and airflow; important for scalability; todo health checks
+  celery:
+    <<: *env_and_net_defaults
+    build: ./ms_django
+    container_name: celery
+    mem_limit: 512m
+    mem_reservation: 128m
+    command: /usr/local/bin/celery -A config worker -l info # clever!
+    volumes:
+      - ./mpicec/django:/code
+
+    depends_on:
+      - postgres
+      - redis
+
+networks:
+  mpicecnet:
+    name: mpicecnet
+    driver: bridge
+
+volumes:
+  files:
+  pgdata:
+  neo4j_data:
+  es_data:
+  airflow_scheduler_data:
+  airflow_worker_data:
+  airflow_data:
+  redis_data:

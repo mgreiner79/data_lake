@@ -1,0 +1,35 @@
+version: "3.9"
+# vm1. minio and s3
+
+# environment variables declared in dev.env are available throughout all containers
+x-env_and_net_defaults: &env_and_net_defaults
+  init: true # best practice see https://medium.com/factualopinions/docker-compose-tricks-and-best-practices-5e7e43eba8eb
+  env_file:
+    - dev.env
+  networks: # containers run all in same subnet
+    - mpicecnet
+
+services:
+  # run minio service
+  minio:
+    <<: *env_and_net_defaults
+    container_name: minio
+    image: quay.io/minio/minio
+    mem_limit: 1024m
+    mem_reservation: 128M
+    hostname: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+networks:
+  mpicecnet:
+    name: mpicecnet
+    driver: bridge
+
+volumes:
+  files:
+  miniodata:

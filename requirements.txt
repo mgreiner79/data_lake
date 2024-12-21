@@ -1,0 +1,15 @@
+amundsen_common==0.24.1
+elasticsearch==7.17.0
+environs==9.5.0
+Flask==2.0.2
+flask_bootstrap==3.3.7.1
+flask_wtf==1.0.0
+labstep==3.11.1
+numpy==1.22.2
+pandas==1.4.0
+psycopg2==2.9.3
+pyhocon==0.3.59
+PyYAML==6.0
+setuptools==60.8.1
+SQLAlchemy==1.4.31
+WTForms==3.0.1

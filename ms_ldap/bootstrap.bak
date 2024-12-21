@@ -1,0 +1,30 @@
+# test
+# dn: dc=mpicec,dc=local already defined in ENV LDAP_DOMAIN=mpicec.local
+
+# Groups, mpicec.local
+dn: ou=Groups,dc=mpicec,dc=local
+ou: Groups
+objectClass: organizationalUnit
+
+# admins, Groups, mpicec.local
+dn: cn=admins,ou=Groups,dc=mpicec,dc=local
+objectClass: posixGroup
+cn: admins
+gidNumber: 5000
+
+
+# test 
+dn: uid=billy,dc=mpicec,dc=local
+uid: billy
+cn: billy
+sn: 3
+objectClass: top
+objectClass: posixAccount
+objectClass: inetOrgPerson
+loginShell: /bin/bash
+homeDirectory: /home/billy
+uidNumber: 14583102
+gidNumber: 5000
+userPassword: test
+mail: billy@example.org
+gecos: Billy User
